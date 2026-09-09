@@ -1,3 +1,11 @@
+process.on('uncaughtException', (err) => {
+    console.error('❌ Error no capturado (Uncaught Exception):', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Promesa rechazada no manejada:', reason);
+});
+
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -95,9 +103,9 @@ async function startBot() {
         }
 
         if (connection === 'close') {
-            const statusCode = (lastDisconnect?.error)?.output?.statusCode;
-            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-            console.log('Conexión cerrada. Código:', statusCode, 'Intentando reconectar...', shouldReconnect);
+            const statusCode = lastDisconnect?.error?.output?.statusCode;
+            const errorMessage = lastDisconnect?.error?.message || lastDisconnect?.error;
+            console.log('❌ Conexión cerrada. Código:', statusCode, '| Detalle:', errorMessage);
             
             if (statusCode === DisconnectReason.loggedOut) {
                 console.log('❌ Sesión cerrada por WhatsApp. Borrando credenciales para generar nuevo QR...');
@@ -106,8 +114,9 @@ async function startBot() {
                 }
             }
 
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
             if (shouldReconnect) {
-                setTimeout(() => startBot(), 3000); // Espera 3 segundos antes de reconectar para evitar saturar
+                setTimeout(() => startBot(), 5000);
             }
         } else if (connection === 'open') {
             qrImage = ''; // Limpia el QR al conectarse con éxito
