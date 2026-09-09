@@ -10,7 +10,6 @@ const {
     default: makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
-    fetchLatestBaileysVersion,
     Browsers
 } = require('@whiskeysockets/baileys');
 const express = require('express');
@@ -80,10 +79,9 @@ function saveDB(data) {
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
-    const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
-        version,
+        version: [2, 3000, 1015901307], // Versión fija para evitar bloqueos de red con GitHub
         logger: pino({ level: 'silent' }),
         auth: state,
         printQRInTerminal: false,
