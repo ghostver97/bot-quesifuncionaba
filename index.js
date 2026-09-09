@@ -88,7 +88,9 @@ async function startBot() {
     const sock = makeWASocket({
         version,
         logger: pino({ level: 'silent' }),
-        auth: state
+        auth: state,
+        printQRInTerminal: false,
+        browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
     sock.ev.on('creds.update', saveCreds);
@@ -96,30 +98,28 @@ async function startBot() {
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        // Generar imagen base64 si Baileys entrega un nuevo QR
         if (qr) {
             qrImage = await QRCode.toDataURL(qr);
-            console.log('⚡ QR Generado con éxito. Copia el siguiente código o ve a la web:', qr);
+            console.log('⚡ QR Generado correctamente en Railway.');
         }
 
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode;
-            const errorMessage = lastDisconnect?.error?.message || lastDisconnect?.error;
-            console.log('❌ Conexión cerrada. Código:', statusCode, '| Detalle:', errorMessage);
-            
+            console.log('❌ Conexión cerrada. Código:', statusCode);
+
             if (statusCode === DisconnectReason.loggedOut) {
-                console.log('❌ Sesión cerrada por WhatsApp. Borrando credenciales para generar nuevo QR...');
+                console.log('❌ Sesión cerrada. Borrando credenciales...');
                 if (fs.existsSync('./auth_info_baileys')) {
                     fs.rmSync('./auth_info_baileys', { recursive: true, force: true });
                 }
             }
 
-            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-            if (shouldReconnect) {
-                setTimeout(() => startBot(), 5000);
-            }
+            setTimeout(() => {
+                startBot();
+            }, 8000);
+            
         } else if (connection === 'open') {
-            qrImage = ''; // Limpia el QR al conectarse con éxito
+            qrImage = '';
             console.log('✅ Bot conectado exitosamente a WhatsApp.');
         }
     });
