@@ -1,0 +1,18 @@
+{
+  "name": "bot-tienda",
+  "version": "1.0.0",
+  "description": "Bot Tienda WhatsApp 24/7",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.5",
+    "express": "^4.19.2",
+    "pino": "^8.20.0",
+    "qrcode": "^1.5.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
