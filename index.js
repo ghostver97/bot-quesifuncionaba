@@ -95,9 +95,20 @@ async function startBot() {
         }
 
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Conexión cerrada. Intentando reconectar...', shouldReconnect);
-            if (shouldReconnect) startBot();
+            const statusCode = (lastDisconnect?.error)?.output?.statusCode;
+            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+            console.log('Conexión cerrada. Código:', statusCode, 'Intentando reconectar...', shouldReconnect);
+            
+            if (statusCode === DisconnectReason.loggedOut) {
+                console.log('❌ Sesión cerrada por WhatsApp. Borrando credenciales para generar nuevo QR...');
+                if (fs.existsSync('./auth_info_baileys')) {
+                    fs.rmSync('./auth_info_baileys', { recursive: true, force: true });
+                }
+            }
+
+            if (shouldReconnect) {
+                setTimeout(() => startBot(), 3000); // Espera 3 segundos antes de reconectar para evitar saturar
+            }
         } else if (connection === 'open') {
             qrImage = ''; // Limpia el QR al conectarse con éxito
             console.log('✅ Bot conectado exitosamente a WhatsApp.');
