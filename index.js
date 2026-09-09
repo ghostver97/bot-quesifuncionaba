@@ -91,7 +91,7 @@ async function startBot() {
         // Generar imagen base64 si Baileys entrega un nuevo QR
         if (qr) {
             qrImage = await QRCode.toDataURL(qr);
-            console.log('⚡ Nuevo QR generado. Disponible en la ruta Web.');
+            console.log('⚡ QR Generado con éxito. Copia el siguiente código o ve a la web:', qr);
         }
 
         if (connection === 'close') {
