@@ -11,7 +11,7 @@ const {
     useMultiFileAuthState,
     DisconnectReason,
     Browsers,
-    fetchLatestBaileysVersion
+    fetchLatestWaWebVersion
 } = require('@whiskeysockets/baileys');
 
 const express = require('express');
@@ -21,14 +21,12 @@ const pino = require('pino');
 const QRCode = require('qrcode');
 
 // ======================================================
-// CONFIGURACIÓN GENERAL
+// CONFIGURACIÓN
 // ======================================================
 
-// Railway asignará RAILWAY_VOLUME_MOUNT_PATH cuando
-// conectemos el Volume.
-//
-// Si todavía NO tienes Volume, utilizaremos /app/data.
-// Los datos funcionarán, pero todavía serán temporales.
+// Cuando montemos el Volume de Railway,
+// RAILWAY_VOLUME_MOUNT_PATH apuntará al disco.
+// Mientras tanto utilizamos /app/data.
 const DATA_DIR =
     process.env.RAILWAY_VOLUME_MOUNT_PATH || '/app/data';
 
@@ -38,13 +36,14 @@ const AUTH_DIR =
 const DB_FILE =
     path.join(DATA_DIR, 'db.json');
 
-// Crear carpeta de datos si no existe
+// Crear carpeta de datos
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, {
         recursive: true
     });
 }
 
+console.log('');
 console.log('========================================');
 console.log('🤖 BOT TIENDA SAMANTHA');
 console.log('========================================');
@@ -52,6 +51,7 @@ console.log('📁 DATA_DIR:', DATA_DIR);
 console.log('🔐 AUTH_DIR:', AUTH_DIR);
 console.log('🗄️ DB_FILE:', DB_FILE);
 console.log('========================================');
+console.log('');
 
 // ======================================================
 // EXPRESS
@@ -63,211 +63,211 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
+// Página principal
 app.get('/', (req, res) => {
 
     if (qrImage) {
 
         res.send(`
-            <!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="es">
 
-            <html lang="es">
+<head>
 
-            <head>
+    <meta charset="UTF-8">
 
-                <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-                <meta
-                    name="viewport"
-                    content="width=device-width, initial-scale=1.0"
-                >
+    <meta
+        http-equiv="refresh"
+        content="10"
+    >
 
-                <meta
-                    http-equiv="refresh"
-                    content="10"
-                >
+    <title>Bot Tienda Samantha</title>
 
-                <title>QR Bot WhatsApp</title>
+    <style>
 
-                <style>
+        * {
+            box-sizing: border-box;
+        }
 
-                    * {
-                        box-sizing: border-box;
-                    }
+        body {
+            margin: 0;
 
-                    body {
-                        margin: 0;
-                        min-height: 100vh;
+            min-height: 100vh;
 
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
 
-                        font-family:
-                            Arial,
-                            Helvetica,
-                            sans-serif;
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
 
-                        background:
-                            linear-gradient(
-                                135deg,
-                                #111827,
-                                #1f2937
-                            );
+            background:
+                linear-gradient(
+                    135deg,
+                    #111827,
+                    #1f2937
+                );
 
-                        color: #111827;
-                    }
+            color: #111827;
+        }
 
-                    .card {
-                        width: 90%;
-                        max-width: 430px;
+        .card {
+            width: 90%;
+            max-width: 450px;
 
-                        background: white;
+            background: white;
 
-                        padding: 30px;
+            padding: 30px;
 
-                        border-radius: 20px;
+            border-radius: 20px;
 
-                        text-align: center;
+            text-align: center;
 
-                        box-shadow:
-                            0 20px 50px
-                            rgba(0,0,0,0.35);
-                    }
+            box-shadow:
+                0 20px 50px
+                rgba(0,0,0,0.35);
+        }
 
-                    h1 {
-                        margin-top: 0;
-                        font-size: 25px;
-                    }
+        h1 {
+            margin-top: 0;
+            font-size: 25px;
+        }
 
-                    img {
-                        width: 280px;
-                        height: 280px;
+        img {
+            width: 280px;
+            height: 280px;
 
-                        max-width: 100%;
+            max-width: 100%;
 
-                        border-radius: 10px;
+            margin: 15px 0;
 
-                        margin: 15px 0;
-                    }
+            border-radius: 10px;
+        }
 
-                    .info {
-                        color: #555;
-                        font-size: 14px;
-                    }
+        .success {
+            color: #16a34a;
+            font-weight: bold;
+        }
 
-                    .success {
-                        color: #16a34a;
-                        font-weight: bold;
-                    }
+        .info {
+            color: #666;
+            font-size: 14px;
+        }
 
-                </style>
+    </style>
 
-            </head>
+</head>
 
-            <body>
+<body>
 
-                <div class="card">
+    <div class="card">
 
-                    <h1>
-                        📱 Vincular Bot WhatsApp
-                    </h1>
+        <h1>
+            📱 Vincular Bot WhatsApp
+        </h1>
 
-                    <p>
-                        Escanea este código QR
-                        desde WhatsApp.
-                    </p>
+        <p>
+            Escanea este código QR
+            desde WhatsApp.
+        </p>
 
-                    <img
-                        src="${qrImage}"
-                        alt="Código QR de WhatsApp"
-                    />
+        <img
+            src="${qrImage}"
+            alt="Código QR de WhatsApp"
+        >
 
-                    <p class="success">
-                        🟢 QR generado correctamente
-                    </p>
+        <p class="success">
+            🟢 QR generado correctamente
+        </p>
 
-                    <p class="info">
-                        El código se actualiza
-                        automáticamente.
-                    </p>
+        <p class="info">
+            El código se actualiza automáticamente.
+        </p>
 
-                    <p class="info">
-                        Bot Tienda Samantha Online 24/7 🚀
-                    </p>
+        <p class="info">
+            Bot Tienda Samantha Online 24/7 🚀
+        </p>
 
-                </div>
+    </div>
 
-            </body>
+</body>
 
-            </html>
+</html>
         `);
 
     } else {
 
         res.send(`
-            <!DOCTYPE html>
+<!DOCTYPE html>
+<html lang="es">
 
-            <html lang="es">
+<head>
 
-            <head>
+    <meta charset="UTF-8">
 
-                <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-                <meta
-                    name="viewport"
-                    content="width=device-width, initial-scale=1.0"
-                >
+    <meta
+        http-equiv="refresh"
+        content="5"
+    >
 
-                <meta
-                    http-equiv="refresh"
-                    content="5"
-                >
+    <title>Bot Tienda Samantha</title>
 
-                <title>Bot Tienda Samantha</title>
+</head>
 
-            </head>
+<body
+    style="
+        margin:0;
+        min-height:100vh;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-family:Arial, sans-serif;
+        background:#f4f4f9;
+        text-align:center;
+    "
+>
 
-            <body
-                style="
-                    margin:0;
-                    min-height:100vh;
-                    display:flex;
-                    align-items:center;
-                    justify-content:center;
-                    font-family:Arial;
-                    background:#f4f4f9;
-                    text-align:center;
-                "
-            >
+    <div>
 
-                <div>
+        <h1>
+            🤖 Bot Tienda Samantha Online 24/7 🚀
+        </h1>
 
-                    <h1>
-                        🤖 Bot Tienda Samantha Online 24/7 🚀
-                    </h1>
+        <p>
+            <b>Estado:</b>
+            conectando con WhatsApp...
+        </p>
 
-                    <p>
-                        <b>Estado:</b>
-                        conectando con WhatsApp...
-                    </p>
+        <p>
+            El QR aparecerá automáticamente.
+        </p>
 
-                    <p>
-                        El QR aparecerá automáticamente.
-                    </p>
+        <p>
+            🔄 Recargando...
+        </p>
 
-                    <p>
-                        🔄 Recargando...
-                    </p>
+    </div>
 
-                </div>
+</body>
 
-            </body>
-
-            </html>
+</html>
         `);
     }
 });
 
+// Health check
 app.get('/health', (req, res) => {
 
     res.json({
@@ -310,7 +310,9 @@ function loadDB() {
             )
         );
 
-        console.log('🗄️ db.json creado.');
+        console.log(
+            '🗄️ db.json creado correctamente.'
+        );
 
         return initialData;
     }
@@ -327,7 +329,7 @@ function loadDB() {
     } catch (error) {
 
         console.error(
-            '❌ Error leyendo db.json:',
+            '❌ ERROR LEYENDO db.json:',
             error
         );
 
@@ -355,7 +357,7 @@ function saveDB(data) {
     } catch (error) {
 
         console.error(
-            '❌ Error guardando DB:',
+            '❌ ERROR GUARDANDO db.json:',
             error
         );
     }
@@ -369,7 +371,7 @@ let reconnectTimer = null;
 
 let botStarting = false;
 
-function scheduleReconnect() {
+function scheduleReconnect(delay = 5000) {
 
     if (reconnectTimer) {
         return;
@@ -381,17 +383,20 @@ function scheduleReconnect() {
 
         startBot();
 
-    }, 5000);
-
+    }, delay);
 }
 
 // ======================================================
-// START BOT
+// INICIAR BOT
 // ======================================================
 
 async function startBot() {
 
     if (botStarting) {
+        console.log(
+            '⚠️ El bot ya se está iniciando.'
+        );
+
         return;
     }
 
@@ -404,7 +409,7 @@ async function startBot() {
         console.log('🚀 INICIANDO BAILEYS');
         console.log('========================================');
 
-        // Crear carpeta de autenticación
+        // Crear carpeta auth
         if (!fs.existsSync(AUTH_DIR)) {
 
             fs.mkdirSync(
@@ -415,7 +420,7 @@ async function startBot() {
             );
 
             console.log(
-                '📁 Carpeta auth creada.'
+                '📁 Carpeta de autenticación creada.'
             );
         }
 
@@ -435,21 +440,21 @@ async function startBot() {
         );
 
         // ==================================================
-        // OBTENER VERSIÓN COMPATIBLE DE BAILEYS
+        // VERSIÓN ACTUAL DE WHATSAPP WEB
         // ==================================================
 
         const {
             version,
             isLatest
-        } = await fetchLatestBaileysVersion();
+        } = await fetchLatestWaWebVersion();
 
         console.log(
-            '📱 Versión WhatsApp utilizada:',
+            '📱 Versión REAL de WhatsApp Web:',
             version.join('.')
         );
 
         console.log(
-            '⭐ ¿Es la última versión?',
+            '⭐ ¿Es la última versión?:',
             isLatest
         );
 
@@ -469,7 +474,7 @@ async function startBot() {
 
             printQRInTerminal: false,
 
-            browser: Browsers.macOS(
+            browser: Browsers.ubuntu(
                 'Chrome'
             ),
 
@@ -493,7 +498,7 @@ async function startBot() {
         );
 
         // ==================================================
-        // ESTADO DE CONEXIÓN
+        // ACTUALIZACIÓN DE CONEXIÓN
         // ==================================================
 
         sock.ev.on(
@@ -507,7 +512,7 @@ async function startBot() {
                 } = update;
 
                 // ==========================================
-                // QR GENERADO
+                // QR
                 // ==========================================
 
                 if (qr) {
@@ -537,13 +542,13 @@ async function startBot() {
                         );
 
                         console.log(
-                            '🌐 Abre la URL pública de Railway para escanearlo.'
+                            '🌐 Abre la URL pública de Railway.'
                         );
 
                     } catch (error) {
 
                         console.error(
-                            '❌ ERROR GENERANDO IMAGEN QR:',
+                            '❌ ERROR GENERANDO QR:',
                             error
                         );
                     }
@@ -592,7 +597,7 @@ async function startBot() {
                     );
 
                     // ======================================
-                    // LOGOUT
+                    // SESIÓN CERRADA / LOGOUT
                     // ======================================
 
                     if (
@@ -601,7 +606,7 @@ async function startBot() {
                     ) {
 
                         console.log(
-                            '🚪 La sesión fue cerrada desde WhatsApp.'
+                            '🚪 WhatsApp cerró la sesión.'
                         );
 
                         console.log(
@@ -623,15 +628,18 @@ async function startBot() {
                                         force: true
                                     }
                                 );
+
                             }
 
                         } catch (error) {
 
                             console.error(
-                                '❌ Error eliminando auth:',
+                                '❌ ERROR ELIMINANDO AUTH:',
                                 error
                             );
                         }
+
+                        qrImage = '';
 
                         console.log(
                             '🔄 Se generará un QR nuevo.'
@@ -640,7 +648,7 @@ async function startBot() {
                     } else {
 
                         console.log(
-                            '🔄 La conexión se cerró.'
+                            '🔄 WhatsApp cerró la conexión.'
                         );
 
                         console.log(
@@ -656,7 +664,7 @@ async function startBot() {
                 }
 
                 // ==========================================
-                // CONEXIÓN ABIERTA
+                // CONECTADO
                 // ==========================================
 
                 if (connection === 'open') {
@@ -755,7 +763,7 @@ async function startBot() {
                         loadDB();
 
                     // ==================================================
-                    // FUNCIÓN ADMIN
+                    // COMPROBAR ADMIN
                     // ==================================================
 
                     async function isAdmin() {
@@ -791,7 +799,7 @@ async function startBot() {
                         } catch (error) {
 
                             console.error(
-                                '❌ Error comprobando admin:',
+                                '❌ ERROR COMPROBANDO ADMIN:',
                                 error
                             );
 
@@ -1237,13 +1245,28 @@ async function startBot() {
         console.error(
             '========================================'
         );
+
         console.error(
             '🔥 ERROR INICIANDO BAILEYS'
         );
+
         console.error(
             '========================================'
         );
-        console.error(error);
+
+        console.error(
+            error
+        );
+
+        console.error(
+            'Mensaje:',
+            error?.message
+        );
+
+        console.error(
+            'Stack:',
+            error?.stack
+        );
 
         console.log(
             '🔄 Reintentando en 10 segundos...'
