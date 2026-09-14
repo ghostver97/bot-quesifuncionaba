@@ -27,8 +27,9 @@ const QRCode = require('qrcode');
 const DATA_DIR =
     process.env.RAILWAY_VOLUME_MOUNT_PATH || '/app/data';
 
+// NUEVA CARPETA PARA IGNORAR LA SESIÓN BANEADA
 const AUTH_DIR =
-    path.join(DATA_DIR, 'auth_info_baileys_nuevo');
+    path.join(DATA_DIR, 'sesion_tienda_v3');
 
 const DB_FILE =
     path.join(DATA_DIR, 'db.json');
@@ -255,8 +256,9 @@ async function startBot() {
                 console.error('Código:', statusCode);
                 console.error('Mensaje:', error?.message);
 
-                if (statusCode === DisconnectReason.loggedOut) {
-                    console.log('🚪 WhatsApp cerró la sesión.');
+                // NUEVO: Detecta 401 (Sesión cerrada) y 403 (Baneo) para borrar los datos
+                if (statusCode === DisconnectReason.loggedOut || statusCode === 403) {
+                    console.log('🚪 WhatsApp cerró la sesión o el número fue baneado.');
                     console.log('🗑️ Eliminando credenciales...');
                     try {
                         if (fs.existsSync(AUTH_DIR)) {
@@ -266,9 +268,9 @@ async function startBot() {
                         console.error('❌ ERROR ELIMINANDO AUTH:', error);
                     }
                     qrImage = '';
-                    console.log('🔄 Se generará un QR nuevo.');
+                    console.log('🔄 Se generará un QR nuevo en el próximo inicio.');
                 } else {
-                    console.log('🔄 WhatsApp cerró la conexión.');
+                    console.log('🔄 WhatsApp cerró la conexión por otro motivo.');
                     console.log('⏳ Reconectando en 5 segundos...');
                 }
 
