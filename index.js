@@ -12,7 +12,6 @@ const {
     DisconnectReason,
     Browsers,
     fetchLatestWaWebVersion,
-    jidNormalizedUser,
     downloadContentFromMessage
 } = require('@whiskeysockets/baileys');
 
@@ -154,6 +153,20 @@ function scheduleReconnect(delay = 5000) {
 }
 
 // ======================================================
+// FUNCIÓN INFALIBLE PARA NÚMEROS DE MÉXICO Y DISPOSITIVOS
+// ======================================================
+function obtenerNumeroBase(jid) {
+    if (!jid) return '';
+    // Quita todo lo que haya después del @ y de los : (dispositivos vinculados)
+    let num = jid.split('@')[0].split(':')[0];
+    // Toma solo los últimos 10 dígitos (ignora el 52 o 521)
+    if (num.length >= 10) {
+        return num.slice(-10);
+    }
+    return num;
+}
+
+// ======================================================
 // INICIAR BOT
 // ======================================================
 
@@ -281,17 +294,17 @@ async function startBot() {
                 const db = loadDB();
 
                 // ==================================================
-                // CORRECCIÓN: BLOQUEO DEL BOT SI NO ES ADMIN
+                // CORRECCIÓN INFALIBLE: ¿EL BOT ES ADMIN?
                 // ==================================================
                 if (isGroup) {
                     try {
                         const metadata = await sock.groupMetadata(from);
                         
-                        // Extraemos solo el número base del bot (sin el dispositivo :15)
-                        const botNumber = sock.user?.id?.split(':')[0]; 
-                        if (!botNumber) return; // Si aún no carga el ID, ignorar por seguridad
-
-                        const botParticipant = metadata.participants.find(p => p.id.startsWith(botNumber));
+                        if (!sock.user?.id) return; // Si aún no carga el ID del bot, ignoramos
+                        const botBase = obtenerNumeroBase(sock.user.id); 
+                        
+                        // Busca en los participantes alguien que tenga los mismos últimos 10 dígitos
+                        const botParticipant = metadata.participants.find(p => obtenerNumeroBase(p.id) === botBase);
                         const isBotAdmin = botParticipant && (botParticipant.admin === 'admin' || botParticipant.admin === 'superadmin');
                         
                         if (!isBotAdmin) return;
@@ -301,18 +314,16 @@ async function startBot() {
                 }
 
                 // ==================================================
-                // CORRECCIÓN: FUNCIÓN PARA VERIFICAR SI EL SENDER ES ADMIN
+                // CORRECCIÓN INFALIBLE: ¿EL USUARIO ES ADMIN?
                 // ==================================================
                 async function isAdmin() {
                     if (!isGroup) return false;
                     
                     try {
                         const metadata = await sock.groupMetadata(from);
+                        const senderBase = obtenerNumeroBase(sender);
                         
-                        // Extraemos solo tu número base (sin el dispositivo :15 si usas WA Web)
-                        const senderNumber = sender.split(':')[0]; 
-                        const participant = metadata.participants.find(p => p.id.startsWith(senderNumber));
-                        
+                        const participant = metadata.participants.find(p => obtenerNumeroBase(p.id) === senderBase);
                         return (participant && (participant.admin === 'admin' || participant.admin === 'superadmin'));
                     } catch (error) {
                         return false;
