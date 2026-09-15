@@ -153,13 +153,11 @@ function scheduleReconnect(delay = 5000) {
 }
 
 // ======================================================
-// FUNCIÓN INFALIBLE PARA NÚMEROS DE MÉXICO Y DISPOSITIVOS
+// FUNCIÓN INFALIBLE PARA CORTAR NÚMEROS
 // ======================================================
 function obtenerNumeroBase(jid) {
     if (!jid) return '';
-    // Quita todo lo que haya después del @ y de los : (dispositivos vinculados)
     let num = jid.split('@')[0].split(':')[0];
-    // Toma solo los últimos 10 dígitos (ignora el 52 o 521)
     if (num.length >= 10) {
         return num.slice(-10);
     }
@@ -294,27 +292,30 @@ async function startBot() {
                 const db = loadDB();
 
                 // ==================================================
-                // CORRECCIÓN INFALIBLE: ¿EL BOT ES ADMIN?
+                // VERIFICACIÓN A PRUEBA DE FALLOS: ¿EL BOT ES ADMIN?
                 // ==================================================
                 if (isGroup) {
                     try {
                         const metadata = await sock.groupMetadata(from);
+                        const myJid = sock.user?.id || sock.authState?.creds?.me?.id;
                         
-                        if (!sock.user?.id) return; // Si aún no carga el ID del bot, ignoramos
-                        const botBase = obtenerNumeroBase(sock.user.id); 
-                        
-                        // Busca en los participantes alguien que tenga los mismos últimos 10 dígitos
-                        const botParticipant = metadata.participants.find(p => obtenerNumeroBase(p.id) === botBase);
-                        const isBotAdmin = botParticipant && (botParticipant.admin === 'admin' || botParticipant.admin === 'superadmin');
-                        
-                        if (!isBotAdmin) return;
+                        if (myJid && metadata && metadata.participants) {
+                            const botBase = obtenerNumeroBase(myJid);
+                            const botParticipant = metadata.participants.find(p => obtenerNumeroBase(p.id) === botBase);
+                            
+                            // Si encontramos al bot, estamos seguros de quién es, y NO es admin, lo bloqueamos.
+                            if (botParticipant && botParticipant.admin !== 'admin' && botParticipant.admin !== 'superadmin') {
+                                return; 
+                            }
+                        }
                     } catch (error) { 
-                        return; 
+                        // Si falla la conexión de lectura, NO bloquemos el bot. Lo dejamos pasar para que funcione.
+                        console.log('⚠️ Aviso: No se pudo verificar si el bot es admin, permitiendo mensaje.'); 
                     }
                 }
 
                 // ==================================================
-                // CORRECCIÓN INFALIBLE: ¿EL USUARIO ES ADMIN?
+                // VERIFICACIÓN: ¿EL USUARIO ES ADMIN?
                 // ==================================================
                 async function isAdmin() {
                     if (!isGroup) return false;
