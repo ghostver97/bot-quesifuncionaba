@@ -280,26 +280,39 @@ async function startBot() {
                 const command = args.shift().toLowerCase();
                 const db = loadDB();
 
-                // BLOQUEO: Si el bot no es admin en el grupo, ignora todo
+                // ==================================================
+                // CORRECCIÓN: BLOQUEO DEL BOT SI NO ES ADMIN
+                // ==================================================
                 if (isGroup) {
                     try {
                         const metadata = await sock.groupMetadata(from);
-                        const botId = jidNormalizedUser(sock.user.id);
-                        const botParticipant = metadata.participants.find(p => p.id === botId);
+                        
+                        // Extraemos solo el número base del bot (sin el dispositivo :15)
+                        const botNumber = sock.user?.id?.split(':')[0]; 
+                        if (!botNumber) return; // Si aún no carga el ID, ignorar por seguridad
+
+                        const botParticipant = metadata.participants.find(p => p.id.startsWith(botNumber));
                         const isBotAdmin = botParticipant && (botParticipant.admin === 'admin' || botParticipant.admin === 'superadmin');
+                        
                         if (!isBotAdmin) return;
-                    } catch (error) { return; }
+                    } catch (error) { 
+                        return; 
+                    }
                 }
 
-                // FUNCIÓN DE VERIFICACIÓN: Revisa si la persona que manda el comando es admin
+                // ==================================================
+                // CORRECCIÓN: FUNCIÓN PARA VERIFICAR SI EL SENDER ES ADMIN
+                // ==================================================
                 async function isAdmin() {
-                    // Si es un chat privado, no hay administradores, así que se bloquean estos comandos
                     if (!isGroup) return false;
                     
                     try {
                         const metadata = await sock.groupMetadata(from);
-                        const participant = metadata.participants.find(p => p.id === sender);
-                        // Cualquier administrador del grupo tiene acceso total a los comandos
+                        
+                        // Extraemos solo tu número base (sin el dispositivo :15 si usas WA Web)
+                        const senderNumber = sender.split(':')[0]; 
+                        const participant = metadata.participants.find(p => p.id.startsWith(senderNumber));
+                        
                         return (participant && (participant.admin === 'admin' || participant.admin === 'superadmin'));
                     } catch (error) {
                         return false;
