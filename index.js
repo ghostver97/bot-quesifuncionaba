@@ -35,7 +35,7 @@ if (!fs.existsSync(DATA_DIR)) {
 
 console.log('');
 console.log('========================================');
-console.log('🤖 BOT TIENDA SAMANTHA');
+console.log('🤖 BOT TIENDA SAMANTHA LA HACKER');
 console.log('========================================');
 console.log('📁 DATA_DIR:', DATA_DIR);
 console.log('🔐 AUTH_DIR:', AUTH_DIR);
@@ -120,7 +120,7 @@ app.listen(PORT, () => {
 
 function loadDB() {
     if (!fs.existsSync(DB_FILE)) {
-        const initialData = { saldos: {}, stock: {}, precios: {}, pago: "", ventas: [], grupos: {} };
+        const initialData = { saldos: {}, stock: {}, precios: {}, pago: "", ventas: [], grupos: {}, textos: {} };
         fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
         return initialData;
     }
@@ -129,10 +129,11 @@ function loadDB() {
         if (!data.pago) data.pago = "";
         if (!data.ventas) data.ventas = [];
         if (!data.grupos) data.grupos = {};
+        if (!data.textos) data.textos = {}; // NUEVO: Para guardar textos de comandos personalizados
         return data;
     } catch (error) {
         console.error('❌ ERROR LEYENDO db.json:', error);
-        return { saldos: {}, stock: {}, precios: {}, pago: "", ventas: [], grupos: {} };
+        return { saldos: {}, stock: {}, precios: {}, pago: "", ventas: [], grupos: {}, textos: {} };
     }
 }
 
@@ -153,7 +154,7 @@ function scheduleReconnect(delay = 5000) {
 }
 
 // ======================================================
-// FUNCIÓN INFALIBLE PARA CORTAR NÚMEROS
+// FUNCIÓN PARA CORTAR NÚMEROS
 // ======================================================
 function obtenerNumeroBase(jid) {
     if (!jid) return '';
@@ -292,7 +293,7 @@ async function startBot() {
                 const db = loadDB();
 
                 // ==================================================
-                // VERIFICACIÓN A PRUEBA DE FALLOS: ¿EL BOT ES ADMIN?
+                // VERIFICACIÓN: ¿EL BOT ES ADMIN?
                 // ==================================================
                 if (isGroup) {
                     try {
@@ -303,14 +304,12 @@ async function startBot() {
                             const botBase = obtenerNumeroBase(myJid);
                             const botParticipant = metadata.participants.find(p => obtenerNumeroBase(p.id) === botBase);
                             
-                            // Si encontramos al bot, estamos seguros de quién es, y NO es admin, lo bloqueamos.
                             if (botParticipant && botParticipant.admin !== 'admin' && botParticipant.admin !== 'superadmin') {
                                 return; 
                             }
                         }
                     } catch (error) { 
-                        // Si falla la conexión de lectura, NO bloquemos el bot. Lo dejamos pasar para que funcione.
-                        console.log('⚠️ Aviso: No se pudo verificar si el bot es admin, permitiendo mensaje.'); 
+                        // Permitir mensaje si hay retraso de red
                     }
                 }
 
@@ -348,28 +347,156 @@ async function startBot() {
                 }
 
                 // ==================================================
+                // COMANDOS DINÁMICOS PERSONALIZADOS
+                // ==================================================
+                const comandosExtra = ['diamantes', 'actas', 'rfc', 'seguidores', 'ofertas', 'certificados', 'infonavit', 'imss'];
+                const comandosSetExtra = comandosExtra.map(c => 'set' + c);
+
+                // Si es un comando público extra (ej. .diamantes, .actas)
+                if (comandosExtra.includes(command)) {
+                    let text = db.textos[command] || `❌ Aún no hay información configurada para *${command.toUpperCase()}*.\n(Un admin debe configurarlo usando *.set${command}*).`;
+                    const imgPath = path.join(DATA_DIR, `img_${command}.jpg`);
+                    
+                    if (fs.existsSync(imgPath)) {
+                        await sock.sendMessage(from, { image: { url: imgPath }, caption: text }, { quoted: m });
+                    } else {
+                        await sock.sendMessage(from, { text: text }, { quoted: m });
+                    }
+                    return; // Terminamos aquí
+                }
+
+                // Si es un comando de configuración extra (ej. .setdiamantes, .setactas)
+                if (comandosSetExtra.includes(command)) {
+                    if (!(await isAdmin())) return;
+                    
+                    const baseCmd = command.substring(3); // Le quitamos la palabra "set" (ej. setdiamantes -> diamantes)
+                    const textoNuevo = args.join(' ');
+                    
+                    if (textoNuevo) {
+                        db.textos[baseCmd] = textoNuevo;
+                    }
+
+                    const buffer = await descargarImagen(m);
+                    if (buffer) {
+                        fs.writeFileSync(path.join(DATA_DIR, `img_${baseCmd}.jpg`), buffer);
+                    }
+
+                    // Si no mandó texto ni imagen, avisamos
+                    if (!textoNuevo && !buffer && !db.textos[baseCmd]) {
+                        return sock.sendMessage(from, { text: `❌ Debes enviar información o una foto. Ejemplo: *.${command} Precios de los diamantes...*` }, { quoted: m });
+                    }
+
+                    saveDB(db);
+                    await sock.sendMessage(from, { text: `✅ Información de *${baseCmd.toUpperCase()}* actualizada correctamente.` }, { quoted: m });
+                    return; // Terminamos aquí
+                }
+
+                // ==================================================
                 // COMANDOS DE LA TIENDA
                 // ==================================================
                 if (command === 'ayuda' || command === 'comandos') {
                     let text = `🤖 *LISTA DE COMANDOS - TIENDA SAMANTHA*\n\n`;
                     text += `👤 *Comandos Públicos:*\n`;
-                    text += `• *.menu* o *.tienda* - Catálogo de productos.\n`;
+                    text += `• *.menu / .tienda* - Catálogo de productos.\n`;
                     text += `• *.stock* - Ver la cantidad disponible.\n`;
                     text += `• *.saldo* - Revisar cuánto dinero tienes.\n`;
-                    text += `• *.comprar <producto>* - Adquirir una cuenta/acta.\n`;
-                    text += `• *.pago* - Ver los datos para hacer depósitos/transferencias.\n\n`;
+                    text += `• *.comprar <producto>* - Adquirir una cuenta.\n`;
+                    text += `• *.pago* - Ver depósitos/transferencias.\n`;
+                    text += `• *.soporte* - Contactar a administración.\n`;
+                    text += `• *.diamantes / .actas / .rfc / .seguidores*\n`;
+                    text += `• *.ofertas / .certificados / .infonavit / .imss*\n\n`;
                     text += `👑 *Solo Administradores del Grupo:*\n`;
+                    text += `• *.versaldo <@usuario>* - Ver saldo de un cliente.\n`;
+                    text += `• *.historial <@usuario>* - Ver plataformas compradas.\n`;
                     text += `• *.addsaldo <@usuario> <cantidad>* - Recargar saldo.\n`;
+                    text += `• *.removesaldo <@usuario> <cantidad>* - Descontar saldo.\n`;
                     text += `• *.setprecio <producto> <precio>* - Modificar precios.\n`;
-                    text += `• *.addstock <producto> <credenciales>* - Subir inventario.\n`;
-                    text += `• *.setpago <clabe o info>* - Configurar la cuenta bancaria.\n`;
-                    text += `• *.ventas* - Ver todas las compras realizadas.\n`;
-                    text += `• *.abrir* - Desbloquear el grupo para que todos hablen.\n`;
-                    text += `• *.cerrar* - Bloquear el grupo (solo admins escriben).\n`;
+                    text += `• *.addstock <producto> <datos>* - Subir inventario.\n`;
+                    text += `• *.delstock <producto>* - Vaciar inventario de un producto.\n`;
+                    text += `• *.setpago <clabe o info>* - Configurar cuenta bancaria.\n`;
+                    text += `• *.set<comando> <texto/foto>* - Ej: *.setdiamantes*, *.setactas*\n`;
+                    text += `• *.ventas* - Ver todas las compras globales.\n`;
+                    text += `• *.abrir / .cerrar* - Manejo de chat del grupo.\n`;
                     text += `• *.todo <mensaje>* - Etiqueta a todos los del grupo.\n`;
-                    text += `• *.welcome / .bye <on/off>* - Activa/desactiva avisos.\n`;
-                    text += `• *.setwelcome / .setbye <texto/foto>* - Modifica avisos de entrada/salida.`;
+                    text += `• *.promocion <texto>* - Lanza alerta masiva de ofertas.\n`;
+                    text += `• *.welcome / .bye <on/off>* - Avisos de entrada/salida.\n`;
+                    text += `• *.setwelcome / .setbye <texto/foto>* - Modifica avisos.\n`;
+                    text += `• *.expulsar / .kick <@usuario>* - Eliminar a alguien del grupo.`;
                     await sock.sendMessage(from, { text }, { quoted: m });
+                }
+
+                else if (command === 'soporte') {
+                    let text = `🛠️ *Soporte - SAMANTHA LA HACKER*\n\nSi tuviste problemas con alguna suscripción de streaming, un trámite o requieres atención, comunícate directamente con la administración aquí:\n👉 wa.me/521XXXXXXXXXX`;
+                    await sock.sendMessage(from, { text }, { quoted: m });
+                }
+
+                else if (command === 'versaldo' || command === 'verbalance') {
+                    if (!(await isAdmin())) return;
+                    const mentioned = m.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+                    if (!mentioned) return sock.sendMessage(from, { text: '❌ Debes etiquetar a la persona. Ejemplo: *.versaldo @usuario*' }, { quoted: m });
+
+                    const base = obtenerNumeroBase(mentioned);
+                    let userSaldo = 0;
+                    for (const key in db.saldos) {
+                        if (obtenerNumeroBase(key) === base) {
+                            userSaldo = db.saldos[key];
+                            break;
+                        }
+                    }
+
+                    await sock.sendMessage(from, {
+                        text: `💰 *CONSULTA DE SALDO*\n\n👤 *Cliente:* @${mentioned.split('@')[0]}\n💵 *Saldo disponible:* $${userSaldo} MXN`,
+                        mentions: [mentioned]
+                    }, { quoted: m });
+                }
+
+                else if (command === 'historial' || command === 'compras') {
+                    if (!(await isAdmin())) return;
+                    const mentioned = m.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+                    if (!mentioned) return sock.sendMessage(from, { text: '❌ Debes etiquetar a la persona. Ejemplo: *.historial @usuario*' }, { quoted: m });
+
+                    const base = obtenerNumeroBase(mentioned);
+                    const comprasCliente = (db.ventas || []).filter(v => obtenerNumeroBase(v.comprador) === base);
+
+                    if (comprasCliente.length === 0) {
+                        return sock.sendMessage(from, {
+                            text: `📁 @${mentioned.split('@')[0]} no registra compras en el sistema aún.`,
+                            mentions: [mentioned]
+                        }, { quoted: m });
+                    }
+
+                    let text = `📜 *HISTORIAL DE COMPRAS*\n👤 *Cliente:* @${mentioned.split('@')[0]}\n📦 *Total de compras:* ${comprasCliente.length}\n\n`;
+                    const ultimas = comprasCliente.slice(-20); 
+                    ultimas.forEach((v, i) => {
+                        const fecha = new Date(v.fecha).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
+                        text += `${i + 1}. *${v.producto.toUpperCase()}* - $${v.precio} MXN\n📅 ${fecha}\n\n`;
+                    });
+
+                    await sock.sendMessage(from, { text, mentions: [mentioned] }, { quoted: m });
+                }
+
+                else if (command === 'expulsar' || command === 'kick') {
+                    if (!(await isAdmin())) return;
+                    const mentioned = m.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+                    if (!mentioned) return sock.sendMessage(from, { text: '❌ Debes etiquetar a la persona que quieres expulsar.' }, { quoted: m });
+                    
+                    try {
+                        await sock.groupParticipantsUpdate(from, [mentioned], "remove");
+                        await sock.sendMessage(from, { text: '✅ Usuario expulsado del grupo exitosamente.' }, { quoted: m });
+                    } catch (e) {
+                        await sock.sendMessage(from, { text: '❌ Hubo un error. ¿Asegúrate de que el bot sea Administrador?' }, { quoted: m });
+                    }
+                }
+
+                else if (command === 'promocion' || command === 'oferta') {
+                    if (!(await isAdmin())) return;
+                    let promoText = args.join(' ');
+                    if (!promoText) return sock.sendMessage(from, { text: '❌ Debes escribir el texto de la promoción.' }, { quoted: m });
+                    
+                    let text = `🚨 *¡NUEVA PROMOCIÓN!* 🚨\n\n${promoText}`;
+                    const metadata = await sock.groupMetadata(from);
+                    const members = metadata.participants.map(p => p.id);
+                    await sock.sendMessage(from, { text: text, mentions: members });
                 }
 
                 else if (command === 'todo' || command === 'todos') {
@@ -533,6 +660,17 @@ async function startBot() {
                     await sock.sendMessage(from, { text: `✅ Saldo actualizado.`, mentions: [mentioned] }, { quoted: m });
                 }
 
+                else if (command === 'removesaldo') {
+                    if (!(await isAdmin())) return;
+                    const mentioned = m.message.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
+                    const monto = parseInt(args[1] || args[0]);
+                    if (!mentioned || isNaN(monto)) return;
+                    
+                    db.saldos[mentioned] = Math.max((db.saldos[mentioned] || 0) - monto, 0);
+                    saveDB(db);
+                    await sock.sendMessage(from, { text: `✅ Saldo descontado correctamente.`, mentions: [mentioned] }, { quoted: m });
+                }
+
                 else if (command === 'addstock') {
                     if (!(await isAdmin())) return;
                     const producto = args[0]?.toLowerCase();
@@ -542,6 +680,16 @@ async function startBot() {
                     db.stock[producto].push(cuenta);
                     saveDB(db);
                     await sock.sendMessage(from, { text: `✅ Stock actualizado.` }, { quoted: m });
+                }
+
+                else if (command === 'delstock') {
+                    if (!(await isAdmin())) return;
+                    const producto = args[0]?.toLowerCase();
+                    if (!db.stock[producto]) return sock.sendMessage(from, { text: '❌ Producto no encontrado en el inventario.' }, { quoted: m });
+                    
+                    db.stock[producto] = [];
+                    saveDB(db);
+                    await sock.sendMessage(from, { text: `✅ Se ha vaciado todo el stock de *${producto.toUpperCase()}*.` }, { quoted: m });
                 }
 
                 else if (command === 'setprecio') {
